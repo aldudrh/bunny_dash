@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>토끼 대시</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+/* Layout: a small game site — sticky header, hero with the playable stage, then how-to, stages, items, footer */
+:root {
+  --page: #fdf3e4;
+  --paper: #fffaf2;
+  --ink: #4a3560;
+  --ink-soft: #7b6a8f;
+  --carrot: #ff8a2b;
+  --berry: #ee5a7e;
+  --leaf: #5bb85d;
+  --line: #ead9c2;
+  --display: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3, .display { font-family: var(--display); font-weight: 400; text-wrap: balance; }
+
+/* header */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--paper);
+  border-bottom: 2px solid var(--line);
+}
+header .wrap { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+.logo { white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 24px; color: var(--ink); text-decoration: none; }
+.logo canvas { width: 40px; height: 40px; }
+nav { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+nav a {
+  font-family: var(--display); font-size: 16px; color: var(--ink-soft);
+  text-decoration: none; padding: 4px 12px; border-radius: 999px;
+}
+nav a:hover, nav a:focus-visible { background: #f6e6cf; color: var(--ink); outline: none; }
+@media (max-width: 560px) { nav { display: none; } .logo { font-size: 20px; } }
+
+/* hero */
+.hero { padding-block: 28px 40px; display: grid; gap: 18px; }
+.hero-text { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--display); color: var(--berry); letter-spacing: .06em; font-size: 15px; }
+.hero h1 { margin: 0; font-size: clamp(32px, 6vw, 58px); line-height: 1.1; }
+.hero h1 em { font-style: normal; color: var(--carrot); }
+.hero p { margin: 0; color: var(--ink-soft); max-width: 60ch; }
+
+.stage {
+  position: relative; width: 100%;
+  max-width: min(1080px, calc((100dvh - 150px) * 16 / 9));
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 22px; overflow: hidden;
+  box-shadow: 0 0 0 5px var(--ink), 0 14px 0 5px #d9c3a3;
+  background: #9ed8f0;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+canvas#c { display: block; width: 100%; height: 100%; }
+.hud {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 2.2% 2.6%;
+  pointer-events: none;
+  font-family: var(--display);
+  font-size: clamp(12px, 2vw, 22px);
+  color: #fffaf2;
+  text-shadow: 0 2px 0 var(--ink), 0 0 6px rgba(74,53,96,.5);
+}
+.hp { flex: 0 1 36%; display: flex; align-items: center; gap: 6px; }
+.hp-track { flex: 1; height: .9em; background: rgba(74,53,96,.55); border: 2px solid #fffaf2; border-radius: 999px; overflow: hidden; }
+.hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--berry), #ffa6bb); border-radius: 999px; transition: width .12s linear; }
+.chip { background: rgba(74,53,96,.45); padding: .1em .6em; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.carrots { color: #ffd29a; }
+.score { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(74,53,96,.3); }
+.overlay[hidden] { display: none; }
+.card {
+  background: rgba(255,250,242,.96); border-radius: 22px;
+  padding: clamp(12px, 3vw, 30px) clamp(16px, 4vw, 44px);
+  text-align: center; display: grid; gap: clamp(4px, 1vw, 10px);
+  box-shadow: 0 6px 0 #d9c3a3; max-width: 88%;
+}
+.card h2 { margin: 0; font-size: clamp(26px, 5.4vw, 58px); color: var(--carrot); text-shadow: 0 3px 0 var(--ink); }
+.card p { margin: 0; font-size: clamp(12px, 1.7vw, 18px); }
+.card .muted { color: var(--ink-soft); }
+.big { font-family: var(--display); font-size: clamp(22px, 4vw, 42px) !important; font-variant-numeric: tabular-nums; }
+.btn {
+  font-family: var(--display); font-size: clamp(16px, 2.4vw, 26px);
+  color: #fffaf2; background: var(--carrot); border: 0; border-radius: 999px;
+  padding: .4em 1.6em; box-shadow: 0 5px 0 #c25a10; cursor: pointer; justify-self: center;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c25a10; }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+.pads {
+  width: 100%; max-width: min(1080px, calc((100dvh - 150px) * 16 / 9));
+  margin: 22px auto 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.pad { font-family: var(--display); font-size: 22px; padding: 14px 0; border: 0; border-radius: 16px; color: #fffaf2; cursor: pointer; touch-action: none; }
+.pad.slide { background: #7a66a0; box-shadow: 0 5px 0 #54457208; box-shadow: 0 5px 0 #544572; }
+.pad.jump { background: var(--leaf); box-shadow: 0 5px 0 #3a8a3d; }
+.pad.down { transform: translateY(3px); box-shadow: none; }
+@media (hover: hover) and (pointer: fine) { .pads { display: none; } .touch-only { display: none; } }
+@media (hover: none), (pointer: coarse) { .key-only { display: none; } }
+body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.pad, .stage { -webkit-touch-callout: none; }
+.pad { font-size: 24px; padding: 20px 0; }
+/* small phones: keep the start card inside the stage */
+@media (max-width: 600px) {
+  .card { padding: 10px 14px; gap: 4px; max-width: 94%; }
+  .card h2 { font-size: 26px; }
+  .card p { font-size: 12px; line-height: 1.4; }
+  .card .muted { display: none; }
+  .big { font-size: 22px !important; }
+  .btn { font-size: 16px; }
+  .hero { padding-block: 16px 28px; gap: 12px; }
+  .hero h1 { font-size: 28px; }
+  .hero p { font-size: 14px; }
+  .rotate-tip { display: block !important; }
+}
+.rotate-tip { display: none; text-align: center; font-size: 13px; color: var(--ink-soft); margin: 22px 0 0; }
+/* phone in landscape: the game fills the screen, buttons float over it */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  header { position: static; }
+  .hero-text { display: none; }
+  .hero { padding-block: 8px 24px; }
+  .stage { max-width: calc((100dvh - 16px) * 16 / 9); }
+  .pads {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    max-width: none; margin: 0; pointer-events: none;
+    display: flex; justify-content: space-between;
+    padding: 0 max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  }
+  .pad { pointer-events: auto; width: 110px; height: 110px; padding: 0; border-radius: 50%; font-size: 18px; opacity: .82; }
+  body:not(.playing) .pads { display: none; }
+  .card { padding: 10px 16px; gap: 4px; }
+  .card .muted { display: none; }
+}
+
+/* sections */
+section.block { padding-block: 44px; border-top: 2px dashed var(--line); }
+section.block h2 { margin: 0 0 6px; font-size: clamp(26px, 4vw, 36px); }
+.lead { margin: 0 0 22px; color: var(--ink-soft); max-width: 60ch; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.tile {
+  background: var(--paper); border: 2px solid var(--line); border-radius: 18px;
+  padding: 16px; display: grid; gap: 6px; align-content: start; min-width: 0;
+}
+.tile h3 { margin: 0; font-size: 20px; }
+.tile p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+kbd {
+  font-family: var(--display); font-size: 14px; background: #fff; border: 2px solid var(--line);
+  border-bottom-width: 4px; border-radius: 8px; padding: 1px 8px; color: var(--ink);
+}
+.keys { display: flex; gap: 6px; flex-wrap: wrap; }
+.tile canvas.icon { width: 100%; max-width: 160px; height: auto; aspect-ratio: 8 / 5; border-radius: 12px; }
+
+.stages { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.stage-card { border-radius: 18px; overflow: hidden; border: 2px solid var(--line); background: var(--paper); min-width: 0; }
+.stage-card canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; }
+.stage-card div { padding: 10px 14px 14px; }
+.stage-card h3 { margin: 0; font-size: 19px; }
+.stage-card p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.lv { font-family: var(--display); color: var(--berry); font-size: 14px; }
+
+footer { padding-block: 30px 40px; border-top: 2px dashed var(--line); color: var(--ink-soft); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="logo" href="#play"><canvas id="logoCv" width="80" height="80"></canvas>토끼 대시</a>
+    <nav>
+      <a href="#play">플레이</a>
+      <a href="#how">게임 방법</a>
+      <a href="#stages">스테이지</a>
+      <a href="#items">아이템</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero" id="play">
+    <div class="hero-text">
+      <span class="eyebrow">무한 달리기 게임</span>
+      <h1>당근 찾아 <em>깡총깡총</em>, 어디까지 달릴 수 있을까?</h1>
+      <p>뭉치가 들판에서 시작해 노을 언덕, 별빛 숲, 눈꽃 마을까지 달려요. 스테이지가 바뀔수록 빨라지고 어려워지지만, 당근 점수도 커져요.</p>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="c" width="960" height="540"></canvas>
+      <div class="hud">
+        <span class="chip" id="lvChip">Lv.1</span>
+        <span class="chip carrots" id="carrots">당근 0</span>
+        <div class="score" id="score">0 점</div>
+      </div>
+      <div class="overlay" id="startScreen">
+        <div class="card">
+          <h2>토끼 대시</h2>
+          <p>당근을 먹을 때마다 점수가 올라가요!<br>장애물에 부딪히거나 구덩이에 빠지면 끝이에요.</p>
+          <p class="muted key-only">점프 스페이스 / ↑ (두 번 누르면 2단 점프) · 슬라이드 ↓</p>
+          <p class="muted touch-only">점프: 점프 버튼이나 화면 터치 (두 번 = 2단 점프) · 슬라이드: 버튼 누르고 있기</p>
+          <p class="muted" id="bestStart"></p>
+          <button class="btn" id="startBtn">달리기 시작</button>
+        </div>
+      </div>
+      <div class="overlay" id="overScreen" hidden>
+        <div class="card">
+          <h2>앗, 넘어졌어요!</h2>
+          <p class="big" id="finalScore">0 점</p>
+          <p id="finalDetail"></p>
+          <button class="btn" id="retryBtn">다시 달리기</button>
+        </div>
+      </div>
+    </div>
+    <p class="rotate-tip">휴대폰을 가로로 돌리면 화면이 더 커져요</p>
+    <div class="pads">
+      <button class="pad jump" id="jumpBtn">점프</button>
+      <button class="pad slide" id="slideBtn">슬라이드</button>
+    </div>
+  </div>
+
+  <section class="block" id="how">
+    <div class="wrap">
+      <h2>게임 방법</h2>
+      <p class="lead">뭉치는 혼자서 앞으로 달려요. 타이밍에 맞춰 점프하고 미끄러지기만 하면 돼요.</p>
+      <div class="grid">
+        <div class="tile">
+          <h3>점프</h3>
+          <div class="keys"><kbd>Space</kbd><kbd>↑</kbd><kbd>화면 터치</kbd></div>
+          <p>공중에서 한 번 더 누르면 2단 점프. 높은 그루터기와 구덩이를 넘을 때 써요.</p>
+        </div>
+        <div class="tile">
+          <h3>슬라이드</h3>
+          <div class="keys"><kbd>↓</kbd><kbd>슬라이드 버튼</kbd></div>
+          <p>누르고 있는 동안 몸을 동그랗게 말고 미끄러져요. 공중에서 누르면 빠르게 내려와요.</p>
+        </div>
+        <div class="tile">
+          <h3>한 번 부딪히면 끝</h3>
+          <p>장애물에 닿거나 구덩이에 빠지면 바로 게임이 끝나요. 다시 달리기로 곧바로 재도전!</p>
+        </div>
+        <div class="tile">
+          <h3>당근이 곧 점수</h3>
+          <p>주황 10점, 보라 30점, 황금 100점에 스테이지 배수를 곱해요. 눈꽃 마을에선 ×5!</p>
+        </div>
+        <div class="tile">
+          <h3>점점 빨라져요</h3>
+          <p>15초마다 다음 스테이지로 넘어가요. 배경과 장애물이 바뀌고, 속도와 구덩이 크기도 커져요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="stages">
+    <div class="wrap">
+      <h2>스테이지</h2>
+      <p class="lead">스테이지마다 장애물, 당근 점수 배수, 난이도가 달라요. 눈꽃 마을을 지나면 들판으로 돌아가지만 배수는 +5, 속도는 더 빨라져요.</p>
+      <div class="stages" id="stageCards"></div>
+    </div>
+  </section>
+
+  <section class="block" id="items">
+    <div class="wrap">
+      <h2>아이템과 장애물</h2>
+      <p class="lead">무엇을 먹고 무엇을 피해야 하는지 미리 알아두세요.</p>
+      <div class="grid" id="itemCards"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">토끼 대시 · 최고 기록은 이 브라우저에만 저장돼요.</div>
+</footer>
+
+<script>
+(() => {
+const cv = document.getElementById('c');
+const mainCtx = cv.getContext('2d');
+let ctx = mainCtx;
+const W = 960, H = 540, GROUND = 440;
+const $ = id => document.getElementById(id);
+
+// ---------- stages (background themes) ----------
+const THEMES = [
+  { name: '햇살 들판', desc: '파란 하늘 아래 첫 달리기', sky: ['#78c4ec', '#c9ecfa', '#fdf1d6'], orb: '#fff4b0', orbGlow: 'rgba(255,244,176,.35)', far: '#a8dba0', near: '#7ec97a', grass: '#5bb85d', grassDark: '#4aa04c', tuft: '#6fcf6f', dirt: '#9b6b43', dirtDark: '#86593a', cloud: 'rgba(255,255,255,.92)', stars: 0, fx: 'none' },
+  { name: '노을 언덕', desc: '주황빛 하늘, 길어지는 그림자', sky: ['#6f5fa8', '#f39a7b', '#ffd59a'], orb: '#ffcf6b', orbGlow: 'rgba(255,190,110,.4)', far: '#c98a7a', near: '#a0705e', grass: '#c9a24a', grassDark: '#a8842f', tuft: '#ddb862', dirt: '#7d4e36', dirtDark: '#653c28', cloud: 'rgba(255,214,190,.85)', stars: 0.2, fx: 'none' },
+  { name: '별빛 숲', desc: '반딧불이와 함께하는 밤', sky: ['#141a3f', '#2e3570', '#5a4d8a'], orb: '#f5f1d8', orbGlow: 'rgba(245,241,216,.18)', far: '#2f4a5a', near: '#22394a', grass: '#2f7a5a', grassDark: '#24624a', tuft: '#3f9a70', dirt: '#3d2f45', dirtDark: '#2f2437', cloud: 'rgba(160,170,220,.35)', stars: 1, fx: 'firefly' },
+  { name: '눈꽃 마을', desc: '하얀 눈이 펑펑, 미끄러운 길', sky: ['#8fb3d9', '#cfe0f0', '#f4f7fb'], orb: '#ffffff', orbGlow: 'rgba(255,255,255,.35)', far: '#dfe9f3', near: '#c3d6e8', grass: '#f6fafe', grassDark: '#d7e5f2', tuft: '#ffffff', dirt: '#8d7a8f', dirtDark: '#776679', cloud: 'rgba(255,255,255,.9)', stars: 0, fx: 'snow' },
+];
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgba = s => { if (s[0] === '#') return [...hex(s), 1]; const m = s.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] ?? 1]; };
+const mix = (a, b, k) => { const A = rgba(a), B = rgba(b); return `rgba(${A.map((v, i) => i < 3 ? Math.round(v + (B[i] - v) * k) : (v + (B[i] - v) * k).toFixed(3)).join(',')})`; };
+function themeAt(p) { // p: continuous stage position
+  const n = THEMES.length, i = ((Math.floor(p) % n) + n) % n, j = (i + 1) % THEMES.length;
+  let k = p - Math.floor(p);
+  k = k < 0.75 ? 0 : (k - 0.75) / 0.25;            // hold, then blend in the last quarter
+  k = k * k * (3 - 2 * k);
+  const A = THEMES[i], B = THEMES[j], o = {};
+  for (const key in A) {
+    if (key === 'sky') o.sky = A.sky.map((c, n) => mix(c, B.sky[n], k));
+    else if (key === 'stars') o.stars = A.stars + (B.stars - A.stars) * k;
+    else if (typeof A[key] === 'string' && (A[key][0] === '#' || A[key].startsWith('rgba'))) o[key] = mix(A[key], B[key], k);
+  }
+  o.fxA = A.fx; o.fxB = B.fx; o.k = k; o.idx = i;
+  return o;
+}
+
+// ---------- state ----------
+let best = 0;
+try { best = +localStorage.getItem('bunnyBest') || 0; } catch (e) {}
+const showBest = () => { $('bestStart').textContent = best ? `최고 기록 ${best.toLocaleString()} 점` : ''; };
+showBest();
+
+const LEVEL_SECS = 15;
+let state = 'title';
+let bunny, objs, pits, speed, dist, score, carrots, hp, nextSpawn, t = 0, playT, level, particles, popups, shake, banner, flakes;
+const keys = { down: false };
+
+function reset() {
+  bunny = { x: 170, y: GROUND, vy: 0, onGround: true, jumps: 0, sliding: false, inv: 0, run: 0, land: 0 };
+  objs = []; pits = []; particles = []; popups = [];
+  speed = 360; dist = 0; score = 0; carrots = 0; nextSpawn = 600; playT = 0; level = 1; shake = 0; banner = null;
+}
+reset();
+flakes = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H, s: 1.5 + Math.random() * 3, v: 40 + Math.random() * 60, ph: Math.random() * 6 }));
+const stars = Array.from({ length: 60 }, () => ({ x: Math.random() * W, y: Math.random() * 300, r: .6 + Math.random() * 1.6, ph: Math.random() * 6 }));
+
+// ---------- input ----------
+function jump() {
+  if (state !== 'play') return;
+  if (bunny.onGround) { bunny.vy = -860; bunny.onGround = false; bunny.jumps = 1; puff(bunny.x, GROUND, 6); }
+  else if (bunny.jumps < 2) { bunny.vy = -760; bunny.jumps = 2; puff(bunny.x, bunny.y - 20, 8, '#ffffff'); }
+}
+const stageInView = () => { const r = $('stage').getBoundingClientRect(); return r.bottom > 80 && r.top < innerHeight - 80; };
+addEventListener('keydown', e => {
+  if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) {
+    if (state === 'play') { e.preventDefault(); if (!e.repeat) jump(); }
+    else if (stageInView() && document.activeElement?.tagName !== 'A') { e.preventDefault(); start(); }
+  }
+  if (['ArrowDown', 'KeyS'].includes(e.code) && state === 'play') { e.preventDefault(); keys.down = true; }
+});
+addEventListener('keyup', e => { if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = false; });
+const jb = $('jumpBtn'), sb = $('slideBtn');
+jb.addEventListener('pointerdown', e => { e.preventDefault(); jb.classList.add('down'); state === 'play' ? jump() : start(); });
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => jb.addEventListener(ev, () => jb.classList.remove('down')));
+// slide lasts exactly as long as a finger (or mouse) is on the button
+let slideHolds = 0;
+const slideOn = () => { sb.classList.add('down'); keys.down = true; };
+const slideOff = () => { slideHolds = 0; sb.classList.remove('down'); keys.down = false; };
+sb.addEventListener('touchstart', e => { e.preventDefault(); slideHolds = e.targetTouches.length; slideOn(); }, { passive: false });
+sb.addEventListener('touchend', e => { e.preventDefault(); slideHolds = e.targetTouches.length; if (!slideHolds) slideOff(); }, { passive: false });
+sb.addEventListener('touchcancel', slideOff);
+sb.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; e.preventDefault(); slideOn(); });
+addEventListener('pointerup', e => { if (e.pointerType !== 'touch') slideOff(); });
+addEventListener('touchend', e => { if (![...e.touches].some(t => t.target === sb)) slideOff(); });
+addEventListener('touchcancel', slideOff);
+addEventListener('blur', slideOff);
+document.addEventListener('visibilitychange', slideOff);
+cv.addEventListener('pointerdown', () => { if (state === 'play') jump(); });
+$('startBtn').addEventListener('click', start);
+$('retryBtn').addEventListener('click', start);
+
+function start() {
+  document.body.classList.add('playing');
+  if (matchMedia('(pointer: coarse)').matches) $('stage').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  reset(); state = 'play';
+  $('startScreen').hidden = true; $('overScreen').hidden = true;
+  banner = { txt: THEMES[0].name, sub: '출발!', life: 1.6 };
+}
+function gameOver(reason) {
+  state = 'over'; keys.down = false; document.body.classList.remove('playing');
+  const newBest = score > best;
+  if (newBest) { best = score; try { localStorage.setItem('bunnyBest', best); } catch (e) {} }
+  $('finalScore').textContent = `${score.toLocaleString()} 점`;
+  $('finalDetail').textContent = `${reason} · Lv.${level} · 당근 ${carrots}개 · ${Math.floor(dist / 100)}m` + (newBest ? ' · 신기록!' : ` · 최고 ${best.toLocaleString()} 점`);
+  showBest();
+  setTimeout(() => { $('overScreen').hidden = false; }, 600);
+}
+
+// ---------- spawning ----------
+function carrotRow(x, y, n, gap = 46, arc = 0) {
+  for (let i = 0; i < n; i++) {
+    const k = n > 1 ? i / (n - 1) : 0;
+    objs.push({ type: 'carrot', kind: Math.random() < 0.12 + Math.min(.1, level * .01) ? 'purple' : 'orange', x: x + i * gap, y: y - Math.sin(k * Math.PI) * arc });
+  }
+}
+// each stage has its own obstacles, carrot multiplier and difficulty
+const MAPS = [
+  { mult: 1, diff: 1, names: ['가시덤불', '그루터기', '나뭇가지'], w: { low: .28, tall: .16, hang: .16, pit: .14, dbl: .06, bonus: .20 }, pit: [100, 130], gap: 1.15 },
+  { mult: 2, diff: 2, names: ['바위', '돌기둥', '단풍 가지'], w: { low: .24, tall: .18, hang: .14, pit: .20, dbl: .12, bonus: .12 }, pit: [130, 165], gap: 1.0 },
+  { mult: 3, diff: 3, names: ['보라 버섯', '큰 버섯', '밤 덩굴'], w: { low: .18, tall: .16, hang: .24, pit: .18, dbl: .14, bonus: .10 }, pit: [145, 185], gap: .92 },
+  { mult: 5, diff: 4, names: ['얼음 덩어리', '눈사람', '고드름'], w: { low: .20, tall: .18, hang: .16, pit: .24, dbl: .14, bonus: .08 }, pit: [160, 205], gap: .85 },
+];
+const stageIdx = () => (level - 1) % MAPS.length;
+const lap = () => Math.floor((level - 1) / MAPS.length);
+const curMult = () => MAPS[stageIdx()].mult + lap() * 5;
+function spawnPattern(x) {
+  const si = stageIdx(), m = MAPS[si], L = lap();
+  const sp = Math.sqrt(speed / 360) * Math.max(.75, m.gap - L * .05);
+  const pitW = () => Math.min(230, m.pit[0] + Math.random() * (m.pit[1] - m.pit[0]) + L * 15);
+  let r = Math.random(), pick = 'bonus';
+  for (const k in m.w) { if (r < m.w[k]) { pick = k; break; } r -= m.w[k]; }
+  if (pick === 'low') {
+    objs.push({ type: 'thorn', skin: si, x: x + 160, w: 46, h: 44 });
+    carrotRow(x, GROUND - 30, 3); carrotRow(x + 130, GROUND - 120, 3, 40, 40);
+    return 420 * sp;
+  } else if (pick === 'tall') {
+    objs.push({ type: 'stump', skin: si, x: x + 180, w: 58, h: si === 3 ? 100 : 92 });
+    carrotRow(x + 120, GROUND - 150, 4, 44, 60);
+    return 480 * sp;
+  } else if (pick === 'hang') {
+    const w = 180 + si * 30 + L * 20;
+    objs.push({ type: 'branch', skin: si, x: x + 120, w, bottom: GROUND - 58 });
+    carrotRow(x + 120, GROUND - 22, Math.round(w / 44), 44);
+    return (280 + w) * sp;
+  } else if (pick === 'pit') {
+    const w = pitW();
+    pits.push({ x: x + 120, w });
+    carrotRow(x + 70, GROUND - 120, 5, (w + 100) / 4, 70);
+    return (360 + w) * sp;
+  } else if (pick === 'dbl') {
+    if (si >= 2) {                                   // two pits with a small island
+      const w1 = pitW() * .8, w2 = pitW() * .8, island = 120;
+      pits.push({ x: x + 120, w: w1 }); pits.push({ x: x + 120 + w1 + island, w: w2 });
+      carrotRow(x + 100, GROUND - 110, 4, (w1 + 40) / 3, 50);
+      carrotRow(x + 120 + w1 + island - 20, GROUND - 110, 4, (w2 + 40) / 3, 50);
+      return (420 + w1 + w2 + island) * sp;
+    }
+    objs.push({ type: 'thorn', skin: si, x: x + 140, w: 46, h: 44 });
+    objs.push({ type: 'thorn', skin: si, x: x + 250, w: 46, h: 44 });
+    carrotRow(x + 120, GROUND - 170, 5, 44, 30);
+    return 520 * sp;
+  } else {
+    carrotRow(x, GROUND - 30, 6);
+    objs.push({ type: 'gold', x: x + 330, y: GROUND - 140 });
+    return 460 * sp;
+  }
+}
+
+// ---------- helpers ----------
+function puff(x, y, n, col = '#e9dcc4') {
+  for (let i = 0; i < n; i++) particles.push({ x, y, vx: (Math.random() - .7) * 220, vy: -Math.random() * 200, life: .5, col, s: 4 + Math.random() * 5 });
+}
+function pop(x, y, txt, col, size = 26) { popups.push({ x, y, txt, col, size, life: .8 }); }
+const CARROT_PTS = { orange: 10, purple: 30, gold: 100 };
+const CARROT_COL = { orange: '#ff9a3c', purple: '#b57cff', gold: '#ffd23f' };
+function overPit(x) { return pits.some(p => x > p.x + 8 && x < p.x + p.w - 8); }
+function bunnyBox() {
+  const h = bunny.sliding ? 40 : 78, w = bunny.sliding ? 64 : 46;
+  return { x: bunny.x - w / 2, y: bunny.y - h, w, h };
+}
+const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+// ---------- update ----------
+function update(dt) {
+  t += dt;
+  for (const f of flakes) { f.y += f.v * dt; f.x += Math.sin(t + f.ph) * 20 * dt - (state === 'play' ? speed * .15 : 30) * dt; if (f.y > H) f.y = -5; if (f.x < -5) f.x = W + 5; }
+  if (state !== 'play') {
+    if (state === 'title') { dist += 160 * dt; bunny.run += dt * 10; }
+    if (state === 'over' && !bunny.onGround) { bunny.vy += 2400 * dt; bunny.y += bunny.vy * dt; }
+    return;
+  }
+  playT += dt;
+  const newLevel = 1 + Math.floor(playT / LEVEL_SECS);
+  if (newLevel > level) {
+    level = newLevel;
+    const th = THEMES[(level - 1) % THEMES.length];
+    banner = { txt: '속도 UP!', sub: `${th.name} · 당근 점수 ×${curMult()}`, life: 2 };
+  }
+  // smooth acceleration with a little kick each level
+  const target = Math.min(1050, 360 + playT * 7 + (level - 1) * 28);
+  speed += (target - speed) * Math.min(1, dt * 2);
+  const dx = speed * dt;
+  dist += dx;
+
+  bunny.sliding = keys.down && bunny.onGround;
+  if (keys.down && !bunny.onGround) bunny.vy += 3000 * dt;
+  bunny.vy += 2400 * dt;
+  const prevY = bunny.y;
+  bunny.y += bunny.vy * dt;
+  const pit = overPit(bunny.x);
+  if (bunny.y >= GROUND && !pit && prevY <= GROUND + 4) {
+    if (!bunny.onGround) { puff(bunny.x, GROUND, 5); bunny.land = 0.12; }
+    bunny.y = GROUND; bunny.vy = 0; bunny.onGround = true; bunny.jumps = 0;
+  } else bunny.onGround = false;
+  if (bunny.onGround) bunny.run += dt * (8 + speed / 60);
+  bunny.inv = Math.max(0, bunny.inv - dt);
+  bunny.land = Math.max(0, bunny.land - dt);
+  if (bunny.y > H + 80) return gameOver('구덩이에 빠졌어요');
+
+  for (const o of objs) o.x -= dx;
+  for (const p of pits) p.x -= dx;
+  objs = objs.filter(o => o.x + (o.w || 40) > -100);
+  pits = pits.filter(p => p.x + p.w > -50);
+  nextSpawn -= dx;
+  if (nextSpawn <= 0) nextSpawn = spawnPattern(W + 40);
+
+  const bb = bunnyBox();
+  for (const o of objs) {
+    if (o.dead) continue;
+    if (o.type === 'carrot' || o.type === 'gold') {
+      const reach = o.type === 'carrot' ? 34 : 40;
+      const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
+      if (Math.abs(o.x - cx) < reach && Math.abs(o.y - cy) < reach + bb.h / 3) {
+        o.dead = true;
+        const kind = o.type === 'gold' ? 'gold' : o.kind;
+        const pts = CARROT_PTS[kind], col = CARROT_COL[kind];
+        const gain = pts * curMult();
+        carrots++; score += gain;
+        pop(o.x, o.y - 24, '+' + gain, col, kind === 'orange' ? 22 : 30);
+        puff(o.x, o.y, kind === 'orange' ? 3 : 10, col);
+      }
+      continue;
+    }
+    const box = o.type === 'branch' ? { x: o.x, y: 0, w: o.w, h: o.bottom } : { x: o.x + 6, y: GROUND - o.h + 6, w: o.w - 12, h: o.h - 6 };
+    if (hit(bb, box)) {
+      bunny.inv = 1; shake = 0.35;
+      pop(bunny.x, bunny.y - 100, '아야!', '#ee5a7e', 30);
+      const what = MAPS[o.skin || 0].names[o.type === 'thorn' ? 0 : o.type === 'stump' ? 1 : 2];
+      return gameOver(`${what}에 부딪혔어요`);
+    }
+  }
+
+  for (const p of particles) { p.x += p.vx * dt - dx * .3; p.y += p.vy * dt; p.vy += 600 * dt; p.life -= dt; }
+  particles = particles.filter(p => p.life > 0);
+  for (const p of popups) { p.y -= 50 * dt; p.life -= dt; }
+  popups = popups.filter(p => p.life > 0);
+  if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
+  shake = Math.max(0, shake - dt);
+}
+
+// ---------- drawing ----------
+const clouds = Array.from({ length: 6 }, (_, i) => ({ x: i * 190 + Math.random() * 80, y: 50 + Math.random() * 110, s: .7 + Math.random() * .6 }));
+
+function drawBg(th, d, w = W, h = H) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, th.sky[0]); g.addColorStop(.62, th.sky[1]); g.addColorStop(1, th.sky[2]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  if (th.stars > 0.01) for (const s of stars) {
+    ctx.globalAlpha = th.stars * (.5 + .5 * Math.sin(t * 2 + s.ph));
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(s.x * w / W, s.y * h / H, s.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // sun / moon
+  const ox = w * .83, oy = h * .18;
+  ctx.fillStyle = th.orbGlow; ctx.beginPath(); ctx.arc(ox, oy, 74, 0, 7); ctx.fill();
+  ctx.fillStyle = th.orb; ctx.beginPath(); ctx.arc(ox, oy, 44, 0, 7); ctx.fill();
+  ctx.fillStyle = th.cloud;
+  for (const c of clouds) {
+    const x = ((c.x - d * 0.05 * c.s) % (W + 200) + W + 200) % (W + 200) - 100;
+    ctx.beginPath();
+    ctx.ellipse(x, c.y, 46 * c.s, 18 * c.s, 0, 0, 7);
+    ctx.ellipse(x + 28 * c.s, c.y - 12 * c.s, 30 * c.s, 20 * c.s, 0, 0, 7);
+    ctx.ellipse(x - 24 * c.s, c.y - 6 * c.s, 24 * c.s, 16 * c.s, 0, 0, 7);
+    ctx.fill();
+  }
+  hills(d, 0.15, 330, 90, 260, th.far, w, h);
+  hills(d, 0.35, 380, 60, 180, th.near, w, h);
+}
+function hills(d, par, base, amp, period, col, w, h) {
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, h);
+  const off = d * par;
+  for (let x = 0; x <= w; x += 10) {
+    const u = (x + off) / period;
+    ctx.lineTo(x, base - Math.abs(Math.sin(u)) * amp - Math.sin(u * 2.3) * amp * .15);
+  }
+  ctx.lineTo(w, h); ctx.fill();
+}
+function drawGround(th, d, pitList, w = W, h = H) {
+  const segs = []; let sx = -10;
+  for (const p of [...pitList].sort((a, b) => a.x - b.x)) { segs.push([sx, p.x]); sx = p.x + p.w; }
+  segs.push([sx, w + 10]);
+  for (const [a, b] of segs) {
+    if (b <= a) continue;
+    ctx.fillStyle = th.dirt; ctx.fillRect(a, GROUND, b - a, h - GROUND);
+    ctx.fillStyle = th.dirtDark;
+    for (let y = GROUND + 34; y < h; y += 30) {
+      const o = d % 60;
+      for (let x = a - o + (y % 60 ? 30 : 0); x < b; x += 60) if (x > a) ctx.fillRect(x, y, 14, 6);
+    }
+    ctx.fillStyle = th.grass; ctx.fillRect(a, GROUND, b - a, 18);
+    ctx.fillStyle = th.grassDark; ctx.fillRect(a, GROUND + 14, b - a, 6);
+    ctx.fillStyle = th.tuft;
+    const o = d % 34;
+    for (let x = a - o; x < b; x += 34) if (x > a + 4 && x < b - 10) {
+      ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + 4, GROUND - 9); ctx.lineTo(x + 8, GROUND); ctx.fill();
+    }
+  }
+  for (const p of pitList) { ctx.fillStyle = '#2a1f38'; ctx.fillRect(p.x, GROUND + 40, p.w, h); }
+}
+function drawFx(th, w = W, h = H) {
+  const amt = fx => (th.fxA === fx ? 1 - th.k : 0) + (th.fxB === fx ? th.k : 0);
+  const snow = amt('snow'), fly = amt('firefly');
+  if (snow > 0.01) {
+    ctx.fillStyle = '#ffffff';
+    for (const f of flakes) { ctx.globalAlpha = snow * .9; ctx.beginPath(); ctx.arc(f.x, f.y, f.s, 0, 7); ctx.fill(); }
+  }
+  if (fly > 0.01) {
+    for (let i = 0; i < 18; i++) {
+      const f = flakes[i];
+      const x = (f.x * 1.3) % w, y = 200 + (f.ph * 40) + Math.sin(t * 1.5 + f.ph) * 30;
+      ctx.globalAlpha = fly * (.4 + .6 * Math.abs(Math.sin(t * 2 + f.ph)));
+      ctx.fillStyle = '#fff7a0'; ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,247,160,.25)'; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCarrot(x, y, s = 1, kind = 'orange') {
+  const gold = kind === 'gold', purple = kind === 'purple';
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(-0.5 + Math.sin(t * 4 + x * .02) * .12);
+  ctx.fillStyle = gold ? '#4fbf6a' : '#5bb85d';
+  ctx.beginPath(); ctx.ellipse(-4, -16, 4, 9, -.4, 0, 7); ctx.ellipse(4, -16, 4, 9, .4, 0, 7); ctx.ellipse(0, -18, 3.5, 10, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = gold ? '#ffcc2e' : purple ? '#9b5cf0' : '#ff8a2b';
+  ctx.beginPath(); ctx.moveTo(-8, -9); ctx.quadraticCurveTo(0, -14, 8, -9); ctx.lineTo(0, 16); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = gold ? '#e0a300' : purple ? '#6f37c4' : '#d8651a'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-5, -3); ctx.lineTo(1, -3); ctx.moveTo(-2, 4); ctx.lineTo(3, 4); ctx.stroke();
+  if (gold || purple) { ctx.fillStyle = '#fff'; ctx.globalAlpha = .5 + .5 * Math.sin(t * 8); ctx.beginPath(); ctx.arc(-3, -6, 2.5, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+  ctx.restore();
+}
+function drawPotion(x, y) {
+  ctx.save(); ctx.translate(x, y + Math.sin(t * 4) * 4);
+  ctx.fillStyle = 'rgba(255,155,176,.35)'; ctx.beginPath(); ctx.arc(0, 2, 26, 0, 7); ctx.fill();
+  ctx.fillStyle = '#c9b79c'; ctx.fillRect(-5, -20, 10, 7);
+  ctx.fillStyle = '#ee5a7e'; ctx.beginPath(); ctx.arc(0, 4, 14, 0, 7); ctx.fill(); ctx.fillRect(-5, -14, 10, 8);
+  ctx.fillStyle = '#fff'; ctx.font = '16px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('♥', 0, 10);
+  ctx.restore();
+}
+function drawThorn(o) {
+  const y = GROUND, cx0 = o.x + o.w / 2, s = o.skin || 0;
+  if (s === 1) {            // rock
+    ctx.fillStyle = '#8a7f8f'; ctx.beginPath(); ctx.ellipse(cx0, y - 20, o.w / 2 + 4, 24, 0, Math.PI, 0); ctx.lineTo(o.x + o.w + 4, y); ctx.lineTo(o.x - 4, y); ctx.fill();
+    ctx.fillStyle = '#a99fae'; ctx.beginPath(); ctx.ellipse(cx0 - 6, y - 30, 12, 7, -.3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6f6575'; ctx.fillRect(cx0 + 4, y - 18, 10, 3);
+    return;
+  }
+  if (s === 2) {            // glowing night mushroom
+    ctx.fillStyle = 'rgba(200,120,255,.25)'; ctx.beginPath(); ctx.arc(cx0, y - 26, 34, 0, 7); ctx.fill();
+    ctx.fillStyle = '#efe3d0'; ctx.fillRect(cx0 - 7, y - 26, 14, 26);
+    ctx.fillStyle = '#b061e8'; ctx.beginPath(); ctx.ellipse(cx0, y - 26, o.w / 2 + 4, 20, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f3dcff'; for (const [dx, dy, r] of [[-10, -34, 4], [6, -40, 3.5], [14, -30, 3]]) { ctx.beginPath(); ctx.arc(cx0 + dx, y + dy, r, 0, 7); ctx.fill(); }
+    return;
+  }
+  if (s === 3) {            // ice block
+    ctx.fillStyle = '#bfe6fa'; ctx.beginPath(); ctx.roundRect(o.x - 2, y - o.h, o.w + 4, o.h, 8); ctx.fill();
+    ctx.strokeStyle = '#7fc2e6'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(o.x + 6, y - o.h + 7, 14, 5); ctx.fillRect(o.x + 6, y - o.h + 15, 6, 12);
+    return;
+  }
+  ctx.fillStyle = '#3f7d3c';
+  ctx.beginPath(); ctx.ellipse(cx0, y - o.h / 2 + 4, o.w / 2 + 2, o.h / 2, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f2efe4';
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI + (i / 6) * Math.PI, cx = cx0 + Math.cos(a) * (o.w / 2), cy = y - o.h / 2 + 4 + Math.sin(a) * (o.h / 2);
+    ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx + Math.cos(a) * 10, cy + Math.sin(a) * 10); ctx.lineTo(cx + 4, cy); ctx.fill();
+  }
+  ctx.fillStyle = '#ee5a7e'; ctx.beginPath(); ctx.arc(o.x + 14, y - 26, 4, 0, 7); ctx.arc(o.x + 32, y - 18, 4, 0, 7); ctx.fill();
+}
+function drawStump(o) {
+  const y = GROUND - o.h, cx0 = o.x + o.w / 2, s = o.skin || 0;
+  if (s === 1) {            // stacked rock pillar
+    const cols = ['#7b7081', '#8f8495', '#a397a8'];
+    for (let i = 0; i < 3; i++) {
+      const ry = GROUND - 16 - i * 28, rx = o.w / 2 + 4 - i * 4;
+      ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.ellipse(cx0 + (i % 2 ? 3 : -2), ry, rx, 17, 0, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(cx0 - 8, GROUND - 78, 9, 5, -.3, 0, 7); ctx.fill();
+    return;
+  }
+  if (s === 2) {            // big mushroom
+    ctx.fillStyle = 'rgba(120,220,255,.18)'; ctx.beginPath(); ctx.arc(cx0, y + 20, 56, 0, 7); ctx.fill();
+    ctx.fillStyle = '#efe3d0'; ctx.fillRect(cx0 - 12, y + 24, 24, o.h - 24);
+    ctx.fillStyle = '#3fb6d9'; ctx.beginPath(); ctx.ellipse(cx0, y + 28, o.w / 2 + 10, 32, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d6f6ff'; for (const [dx, dy, r] of [[-16, 12, 6], [8, 4, 5], [20, 18, 4], [-2, 20, 3]]) { ctx.beginPath(); ctx.arc(cx0 + dx, y + dy, r, 0, 7); ctx.fill(); }
+    return;
+  }
+  if (s === 3) {            // snowman
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#b9cfe2'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx0, GROUND - 26, 28, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx0, GROUND - 70, 20, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#4a3560'; ctx.fillRect(cx0 - 16, GROUND - 98, 32, 6); ctx.fillRect(cx0 - 10, GROUND - 116, 20, 20);
+    ctx.fillStyle = '#ee5a7e'; ctx.fillRect(cx0 - 10, GROUND - 100, 20, 4);
+    ctx.fillStyle = '#4a3560'; ctx.beginPath(); ctx.arc(cx0 - 7, GROUND - 74, 2.5, 0, 7); ctx.arc(cx0 + 7, GROUND - 74, 2.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ff8a2b'; ctx.beginPath(); ctx.moveTo(cx0 - 2, GROUND - 68); ctx.lineTo(cx0 - 18, GROUND - 64); ctx.lineTo(cx0 - 2, GROUND - 63); ctx.fill();
+    return;
+  }
+  ctx.fillStyle = '#8a5a34'; ctx.fillRect(o.x, y + 8, o.w, o.h - 8);
+  ctx.fillStyle = '#6e4426'; for (let i = 1; i < 4; i++) ctx.fillRect(o.x + i * o.w / 4 - 2, y + 18, 4, o.h - 24);
+  ctx.fillStyle = '#e7c48e'; ctx.beginPath(); ctx.ellipse(cx0, y + 8, o.w / 2, 10, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#b98e58'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx0, y + 8, o.w / 4, 5, 0, 0, 7); ctx.stroke();
+}
+function drawBranch(o) {
+  const s = o.skin || 0;
+  if (s === 3) {            // snowy ledge with icicles
+    ctx.fillStyle = '#9fb7cc'; ctx.fillRect(o.x - 10, 0, o.w + 20, o.bottom - 30);
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(o.x - 14, o.bottom - 40, o.w + 28, 16, 8); ctx.fill();
+    ctx.fillStyle = '#cdeefc';
+    for (let x = o.x - 6; x < o.x + o.w; x += 22) { const l = 22 + ((x * 7) % 9); ctx.beginPath(); ctx.moveTo(x, o.bottom - 26); ctx.lineTo(x + 8, o.bottom - 26 + l); ctx.lineTo(x + 16, o.bottom - 26); ctx.fill(); }
+    return;
+  }
+  const leaf = [['#5b8f3a', '#4c7a30', '#ffdf5e'], ['#e0763a', '#c45a28', '#ffd06b'], ['#2f6a5a', '#245446', '#c48cff']][s];
+  ctx.fillStyle = s === 2 ? '#3a2e44' : '#6e4426'; ctx.fillRect(o.x - 10, 0, o.w + 20, o.bottom - 34);
+  ctx.fillStyle = leaf[0];
+  for (let x = o.x - 10; x < o.x + o.w + 10; x += 28) { ctx.beginPath(); ctx.arc(x + 14, o.bottom - 26, 22, 0, 7); ctx.fill(); }
+  ctx.fillStyle = leaf[1];
+  for (let x = o.x; x < o.x + o.w; x += 36) { ctx.beginPath(); ctx.ellipse(x + 18, o.bottom - 6, 7, 12, 0, 0, 7); ctx.fill(); }
+  ctx.fillStyle = leaf[2];
+  if (s === 2) for (let x = o.x + 10; x < o.x + o.w; x += 50) { ctx.beginPath(); ctx.arc(x, o.bottom - 8, 5, 0, 7); ctx.fill(); }
+  else { ctx.beginPath(); ctx.moveTo(o.x + 4, o.bottom - 2); ctx.lineTo(o.x + 14, o.bottom + 14); ctx.lineTo(o.x + 24, o.bottom - 2); ctx.fill(); }
+}
+
+// ---------- the bunny (뭉치) ----------
+const FUR = '#ffffff', FUR2 = '#f4ecfa', SHADE = '#ece1f6', PINK = '#ffc2d4', BLUSH = 'rgba(255,120,160,.5)', LINE = '#6b5480', BOW = '#ff7aa2';
+function oval(x, y, rx, ry, rot = 0, fill = FUR, stroke = true) {
+  ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, 7); ctx.fill(); if (stroke) ctx.stroke();
+}
+function drawBow(x, y, s = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(-.3);
+  ctx.lineWidth = 2; ctx.strokeStyle = LINE;
+  for (const d of [-1, 1]) {
+    ctx.fillStyle = BOW;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(d * 8, -14, d * 19, -10, d * 17, 0); ctx.bezierCurveTo(d * 19, 10, d * 8, 13, 0, 0); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(d * 10, -3, 1.8, 0, 7); ctx.arc(d * 13, 4, 1.4, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = '#ffd6e3'; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function eye(ex, ey) {
+  const g = ctx.createLinearGradient(0, ey - 8, 0, ey + 8);
+  g.addColorStop(0, '#2c1d3d'); g.addColorStop(.65, '#4a3270'); g.addColorStop(1, '#8a6bc4');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(ex, ey, 6.4, 8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(ex + 2, ey - 3.2, 2.9, 3.3, -.3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(ex - 2.4, ey + 3.6, 1.3, 0, 7); ctx.fill();
+  ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(ex + 3, ey + 4, .8, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+}
+function drawFace(cx, cy, mood) {
+  const blink = (t % 3.6) < 0.13;
+  ctx.lineCap = 'round'; ctx.strokeStyle = LINE;
+  for (const ex of [cx - 7, cx + 15]) {
+    if (mood === 'happy' || blink) {
+      ctx.lineWidth = 2.8; ctx.beginPath(); ctx.arc(ex, cy + 3, 5.5, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    } else if (mood === 'ouch') {
+      ctx.lineWidth = 2.8; ctx.beginPath();
+      const d = ex < cx ? 1 : -1;
+      ctx.moveTo(ex - 4 * d, cy - 5); ctx.lineTo(ex + 4 * d, cy); ctx.lineTo(ex - 4 * d, cy + 5); ctx.stroke();
+    } else eye(ex, cy);
+  }
+  // blush with little lines
+  for (const [bx, w] of [[cx - 15, 7], [cx + 24, 6]]) {
+    ctx.fillStyle = BLUSH; ctx.beginPath(); ctx.ellipse(bx, cy + 10, w, 4, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,90,140,.55)'; ctx.lineWidth = 1.2;
+    for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(bx + i * 3 - 1, cy + 12); ctx.lineTo(bx + i * 3 + 1.5, cy + 8); ctx.stroke(); }
+  }
+  // nose + tiny ω mouth
+  ctx.fillStyle = '#ff8fb0';
+  ctx.beginPath(); ctx.ellipse(cx + 4, cy + 7, 2.4, 1.7, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1.7;
+  if (mood === 'ouch') { ctx.beginPath(); ctx.ellipse(cx + 4, cy + 13, 2.6, 3, 0, 0, 7); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.arc(cx + 2, cy + 10, 2, 0, Math.PI); ctx.arc(cx + 6, cy + 10, 2, 0, Math.PI); ctx.stroke(); }
+}
+function headShade(x, y, rx, ry) {
+  const g = ctx.createRadialGradient(x - rx * .3, y - ry * .4, 2, x, y, rx * 1.1);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.75, '#ffffff'); g.addColorStop(1, SHADE);
+  return g;
+}
+function ear(x, y, rot, len, floppy) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  oval(0, -len * .5, 10, len * .55); oval(0, -len * .48, 4.6, len * .38, 0, PINK, false);
+  if (floppy) { ctx.translate(0, -len * .92); ctx.rotate(floppy); oval(6, -2, 10, 8); oval(6, -2, 4.6, 3.4, 0, PINK, false); }
+  ctx.restore();
+}
+function drawBunny(b, playing = true) {
+  if (playing && b.inv > 0 && Math.floor(b.inv * 14) % 2 === 0) return;
+  ctx.save(); ctx.translate(b.x, b.y);
+  const run = Math.sin(b.run), air = !b.onGround;
+  const bob = b.onGround && !b.sliding ? Math.abs(run) * 4 : 0;
+  if (b.onGround) { ctx.fillStyle = 'rgba(40,25,60,.18)'; ctx.beginPath(); ctx.ellipse(0, 2, b.sliding ? 36 : 26, 5, 0, 0, 7); ctx.fill(); }
+  let sx = 1, sy = 1;
+  if (air) { sy = 1 + Math.min(.12, Math.abs(b.vy) / 7000); sx = 2 - sy; }
+  if (b.land > 0) { sy = 1 - b.land * 1.2; sx = 1 + b.land * 1.2; }
+  ctx.translate(0, -bob); ctx.scale(sx, sy);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
+  const mood = b.inv > 0 ? 'ouch' : (air && b.jumps === 2 ? 'happy' : 'normal');
+
+  if (b.sliding) {
+    oval(-24, -14, 8, 8);
+    ear(-12, -28, -1.9, 34, 0);
+    ear(-2, -32, -1.7, 34, 0);
+    ctx.fillStyle = headShade(4, -20, 32, 21); ctx.beginPath(); ctx.ellipse(4, -20, 32, 21, 0, 0, 7); ctx.fill(); ctx.stroke();
+    drawBow(-6, -40, .7);
+    drawFace(8, -24, 'happy');
+    ctx.strokeStyle = 'rgba(107,84,128,.35)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-44 - i * 6, -30 + i * 10); ctx.lineTo(-64 - i * 6, -30 + i * 10); ctx.stroke(); }
+    ctx.restore(); return;
+  }
+
+  const f1 = air ? 4 : run * 6, f2 = air ? -4 : -run * 6;
+  oval(-7 + f2, -5, 8.5, 6, 0, FUR2);              // back foot
+  oval(-17, -18, 8, 8);                           // pom-pom tail
+  oval(1, -18, 15, 14);                           // tiny chubby body
+  oval(9 + f1, -5, 8.5, 6, 0, FUR);               // front foot
+  ctx.fillStyle = PINK; ctx.beginPath(); ctx.arc(11 + f1, -5, 2.2, 0, 7); ctx.fill();
+  // ears — short and round, one tip flops over
+  const sway = air ? -0.3 : Math.sin(b.run * 0.5) * 0.08;
+  ear(-10, -74, -0.28 + sway, 40, 0);
+  ear(10, -76, 0.18 + sway, 38, 1.0 + (air ? .3 : Math.sin(b.run) * .12));
+  // big mochi head
+  const tilt = b.onGround ? Math.sin(b.run * .5) * .04 : -.05;
+  ctx.save(); ctx.translate(2, -50); ctx.rotate(tilt);
+  ctx.fillStyle = headShade(0, 0, 31, 27); ctx.beginPath(); ctx.ellipse(0, 0, 31, 27, 0, 0, 7); ctx.fill(); ctx.stroke();
+  // little tuft on top
+  ctx.fillStyle = FUR; ctx.beginPath(); ctx.moveTo(-6, -25); ctx.quadraticCurveTo(-2, -34, 2, -26); ctx.quadraticCurveTo(5, -32, 8, -25); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = FUR; ctx.fillRect(-7, -27, 16, 4);
+  drawFace(2, 2, mood);
+  ctx.restore();
+  // little paws held up
+  ctx.save(); ctx.translate(13, -20); ctx.rotate(air ? -1.2 : -run * .4 + .3); oval(0, 4, 5.5, 6); ctx.restore();
+  drawBow(16, -76, .8);
+  ctx.restore();
+}
+
+function drawBanner() {
+  if (!banner) return;
+  const a = Math.min(1, banner.life * 2, (1.8 - banner.life) * 6 + .2);
+  const s = 1 + Math.max(0, banner.life - 1.5) * .6;
+  ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.translate(W / 2, 200); ctx.scale(s, s);
+  ctx.textAlign = 'center';
+  ctx.font = '64px Jua, sans-serif'; ctx.lineWidth = 10; ctx.strokeStyle = '#4a3560'; ctx.strokeText(banner.txt, 0, 0);
+  ctx.fillStyle = '#ffb24a'; ctx.fillText(banner.txt, 0, 0);
+  ctx.font = '28px Jua, sans-serif'; ctx.lineWidth = 7; ctx.strokeText(banner.sub, 0, 44);
+  ctx.fillStyle = '#fffaf2'; ctx.fillText(banner.sub, 0, 44);
+  ctx.restore();
+}
+function drawSpeedLines() {
+  const k = Math.max(0, (speed - 520) / 500);
+  if (k <= 0 || state !== 'play') return;
+  ctx.strokeStyle = `rgba(255,255,255,${(.25 * k).toFixed(3)})`; ctx.lineWidth = 2;
+  for (let i = 0; i < 10; i++) {
+    const y = (i * 53 + t * 900) % 400 + 30, x = (W - ((t * speed * 2 + i * 211) % (W + 200)));
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 60 + 80 * k, y); ctx.stroke();
+  }
+}
+
+function draw() {
+  ctx = mainCtx;
+  const stagePos = state === 'title' ? (t / 6) % THEMES.length : playT / LEVEL_SECS;
+  const th = themeAt(stagePos);
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - .5) * 10 * shake / .3, (Math.random() - .5) * 10 * shake / .3);
+  drawBg(th, dist);
+  drawGround(th, dist, pits);
+  for (const o of objs) {
+    if (o.dead) continue;
+    if (o.type === 'carrot') drawCarrot(o.x, o.y, o.kind === 'purple' ? 1.25 : 1, o.kind);
+    else if (o.type === 'gold') drawCarrot(o.x, o.y + Math.sin(t * 4) * 4, 1.7, 'gold');
+    else if (o.type === 'thorn') drawThorn(o);
+    else if (o.type === 'stump') drawStump(o);
+    else if (o.type === 'branch') drawBranch(o);
+  }
+  drawBunny(bunny, state === 'play');
+  drawFx(th);
+  drawSpeedLines();
+  for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life * 2); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center';
+  for (const p of popups) {
+    ctx.font = `${p.size}px Jua, sans-serif`;
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.lineWidth = 5; ctx.strokeStyle = '#4a3560'; ctx.strokeText(p.txt, p.x, p.y);
+    ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+  drawBanner();
+  ctx.restore();
+
+  $('score').textContent = `${score.toLocaleString()} 점`;
+  $('carrots').textContent = `당근 ${carrots}`;
+  $('lvChip').textContent = `Lv.${level} · 당근 ×${curMult()} · ${Math.round(speed / 3.6)}km/h`;
+}
+
+// ---------- site illustrations ----------
+function withCtx(canvas, fn) { const prev = ctx; ctx = canvas.getContext('2d'); fn(ctx); ctx = prev; }
+const logo = $('logoCv');
+function drawLogo() {
+  withCtx(logo, c => {
+    c.clearRect(0, 0, 80, 80); c.save(); c.translate(38, 100); c.scale(.6, .6);
+    drawBunny({ x: 0, y: 0, vy: 0, onGround: true, jumps: 0, sliding: false, inv: 0, run: 0, land: 0 }, false);
+    c.restore();
+  });
+}
+const stageWrap = $('stageCards');
+const stageCanvases = THEMES.map((th, i) => {
+  const card = document.createElement('div'); card.className = 'stage-card';
+  const lvFrom = i + 1;
+  const m = MAPS[i];
+  card.innerHTML = `<canvas width="480" height="240"></canvas><div><span class="lv">Lv.${lvFrom} · 당근 ×${m.mult} · 난이도 ${'★'.repeat(m.diff)}${'☆'.repeat(4 - m.diff)}</span><h3>${th.name}</h3><p>${th.desc}</p><p>장애물: ${m.names.join(', ')}, 구덩이${i >= 2 ? ' (연속 구덩이)' : ''}</p></div>`;
+  stageWrap.appendChild(card);
+  return card.querySelector('canvas');
+});
+function drawStageCards() {
+  stageCanvases.forEach((c, i) => withCtx(c, cx => {
+    cx.save(); cx.scale(.5, .5); cx.translate(0, -60);
+    const th = themeAt(i);
+    drawBg(th, 300 + i * 500); drawGround(th, 300 + i * 500, []); drawFx(th);
+    drawBunny({ x: 200, y: GROUND, vy: 0, onGround: true, jumps: 0, sliding: false, inv: 0, run: t * 10 + i, land: 0 }, false);
+    drawThorn({ x: 420, w: 46, h: 44, skin: i }); drawStump({ x: 580, w: 58, h: i === 3 ? 100 : 92, skin: i }); drawBranch({ x: 740, w: 160, bottom: GROUND - 58, skin: i });
+    cx.restore();
+  }));
+}
+const ITEMS = [
+  { name: '주황 당근 · 10점', desc: '가장 흔한 당근. 점수는 스테이지 배수만큼 커져요. 줄지어 놓인 당근을 따라가면 안전한 길이 보여요.', draw: () => drawCarrot(80, 50, 1.6) },
+  { name: '보라 당근 · 30점', desc: '당근 줄 사이에 가끔 섞여 있어요. 레벨이 오를수록 자주 나와요.', draw: () => drawCarrot(80, 50, 1.7, 'purple') },
+  { name: '황금 당근 · 100점', desc: '쉬어가는 구간에 하나씩 떠 있어요. 반짝일 때 놓치지 마세요.', draw: () => drawCarrot(80, 50, 1.9, 'gold') },
+  { name: '낮은 장애물', desc: '덤불, 바위, 버섯, 얼음. 닿으면 끝! 한 번 점프로 넘어요.', draw: () => { ctx.translate(4, 92 - GROUND * .5); ctx.scale(.5, .5); [0, 1, 2, 3].forEach(i => drawThorn({ x: 20 + i * 72, w: 46, h: 44, skin: i })); } },
+  { name: '높은 장애물', desc: '그루터기, 돌기둥, 큰 버섯, 눈사람. 2단 점프가 든든해요.', draw: () => { ctx.translate(4, 92 - GROUND * .5); ctx.scale(.5, .5); [0, 1, 2, 3].forEach(i => drawStump({ x: 14 + i * 74, w: 58, h: i === 3 ? 100 : 92, skin: i })); } },
+  { name: '매달린 장애물', desc: '나뭇가지, 덩굴, 고드름. 슬라이드로 밑을 쏙 빠져나가요.', draw: () => { ctx.translate(0, 70 - (GROUND - 58) * .5 - 18); ctx.scale(.5, .5); [0, 1, 2, 3].forEach(i => drawBranch({ x: 10 + i * 80, w: 60, bottom: GROUND - 58, skin: i })); } },
+  { name: '구덩이', desc: '빠지면 바로 끝! 뒤 스테이지일수록 넓어지고, 별빛 숲부터는 연달아 나와요.', draw: () => { ctx.translate(0, 70 - GROUND); drawGround(THEMES[0], 0, [{ x: 50, w: 60 }], 160, GROUND + 60); } },
+];
+const itemWrap = $('itemCards');
+const itemCanvases = ITEMS.map(it => {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<canvas class="icon" width="160" height="100"></canvas><h3>${it.name}</h3><p>${it.desc}</p>`;
+  itemWrap.appendChild(d);
+  return d.querySelector('canvas');
+});
+function drawItems() {
+  itemCanvases.forEach((c, i) => withCtx(c, cx => {
+    cx.clearRect(0, 0, 160, 100);
+    cx.fillStyle = '#f6ead8'; cx.fillRect(0, 0, 160, 100);
+    cx.save(); ITEMS[i].draw(); cx.restore();
+  }));
+}
+
+let last = performance.now(), siteTick = 0;
+function loop(now) {
+  const dt = Math.max(0, Math.min(0.033, (now - last) / 1000)); last = now;
+  update(dt); draw();
+  siteTick += dt;
+  if (siteTick > 0.1) { siteTick = 0; drawLogo(); drawStageCards(); drawItems(); }
+  requestAnimationFrame(loop);
+}
+drawLogo(); drawStageCards(); drawItems();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
